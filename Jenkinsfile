@@ -5,7 +5,7 @@ pipeline {
         SONAR_PROJECT_KEY = 'Giabaoday_Sample-microservice'
         SONAR_ORG = 'giabaoday'
         DOCKER_HUB_REPO = 'baotg0502/demo-app'
-        DOCKER_HUB_CREDENTIALS = 'docker-hub-token'
+        DOCKER_HUB_CREDENTIALS = 'docker-hub-credentials'
     }
     
     tools {
