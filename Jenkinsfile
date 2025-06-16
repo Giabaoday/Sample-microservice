@@ -105,39 +105,22 @@ pipeline {
             }
         }
         
-        stage('Container Security Scan') {
-            when {
-                expression { fileExists('Dockerfile') }
-            }
-            tools {
-                snyk 'Snyk'
-            }
+        stage('Scan') {
             steps {
-                echo '🔍 Scanning Docker image for vulnerabilities...'
-                withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
-                    script {
-                        sh '''
-                            snyk auth $SNYK_TOKEN
-                            
-                            echo "🐳 Scanning container image..."
-                            snyk container test demo-app:${BUILD_NUMBER} \
-                                --severity-threshold=high \
-                                --json > snyk-container-report.json || echo "Container vulnerabilities found"
-                            
-                            echo "📊 Container scan results:"
-                            snyk container test demo-app:${BUILD_NUMBER} \
-                                --severity-threshold=medium || echo "Container scan completed"
-                            
-                            echo "🔄 Monitoring container image..."
-                            snyk container monitor demo-app:${BUILD_NUMBER} \
-                                --project-name="demo-app-container-${BUILD_NUMBER}" || echo "Container monitoring setup"
-                        '''
+                script {
+                    snykSecurity(
+                        severity: 'critical',
+                        snykInstallation: 'Snyk',
+                        snykTokenId: 'snyk-token'
+                    )
+                    def variable = sh(
+                        script: 'snyk container test medahi/xyz-abc --severity-threshold=critical',
+                        returnStatus: true
+                    )
+                    echo "error code = [1m${variable}[0m"
+                    if (variable != 0) {
+                        echo "Alert for vulnerability found"
                     }
-                }
-            }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'snyk-container-report.json', allowEmptyArchive: true
                 }
             }
         }
