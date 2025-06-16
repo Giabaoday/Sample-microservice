@@ -11,7 +11,7 @@ public class HelloController {
     @GetMapping("/")
     public Map<String, String> hello() {
         Map<String, String> response = new HashMap<>();
-        response.put("message", "Hello from Microservice!");
+        response.put("message", "Hello from Microservice! New message here!");
         response.put("version", "1.0.0");
         response.put("timestamp", String.valueOf(System.currentTimeMillis()));
         return response;
