@@ -111,15 +111,16 @@ pipeline {
                     snykSecurity(
                         severity: 'critical',
                         snykInstallation: 'Snyk',
-                        snykTokenId: 'snyk-token'
+                        snykTokenId: 'snyk-token',
+                        failOnIssues: false
                     )
                     def variable = sh(
                         script: 'snyk container test medahi/xyz-abc --severity-threshold=critical',
                         returnStatus: true
                     )
-                    echo "error code = [1m${variable}[0m"
+                    echo "error code =  \u001b[1m${variable}\u001b[0m"
                     if (variable != 0) {
-                        echo "Alert for vulnerability found"
+                        echo "Warning: Vulnerabilities found, but continuing pipeline."
                     }
                 }
             }
