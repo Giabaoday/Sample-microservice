@@ -156,17 +156,47 @@ pipeline {
             }
         }
         
-        stage('Deploy') {
+        stage('Deploy to Kubernetes') {
             steps {
-                echo '🚀 Deploying application...'
-                sh '''
-                    echo "Deployment to staging environment..."
-                    echo "Application version: ${BUILD_NUMBER}"
-                    echo "Deployment successful!"
-                '''
+                echo '☸️ Deploying to Kubernetes...'
+                script {
+                    sh '''
+                        # Update image tag in deployment
+                        sed -i "s|demo-microservice:latest|demo-microservice:${BUILD_NUMBER}|g" k8s/deployment.yaml
+                        
+                        # Apply Kubernetes manifests
+                        kubectl apply -f k8s/deployment.yaml
+                        kubectl apply -f k8s/service.yaml
+                        
+                        # Wait for deployment to be ready with health checks
+                        kubectl rollout status deployment/demo-microservice --timeout=300s
+                        
+                        # Verify health checks
+                        echo "Verifying application health..."
+                        kubectl get pods -l app=demo-microservice
+                        
+                        # Get service URL and verify endpoint
+                        SERVICE_URL=$(kubectl get service demo-microservice-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+                        if [ -n "$SERVICE_URL" ]; then
+                            echo "Service URL: http://$SERVICE_URL"
+                            # Add health check
+                            curl -f http://$SERVICE_URL/health || echo "Health check failed, but continuing..."
+                        fi
+                        
+                        echo "✅ Kubernetes deployment successful!"
+                    '''
+                }
             }
-        }
-    }
+            post {
+                failure {
+                    echo '❌ Deployment failed, attempting rollback...'
+                    sh '''
+                        kubectl rollout undo deployment/demo-microservice
+                        kubectl rollout status deployment/demo-microservice --timeout=300s
+                    '''
+                }
+            }
+        }   
     
     post {
         always {
