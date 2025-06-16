@@ -124,8 +124,8 @@ pipeline {
                 failure {
                     echo '❌ Deployment failed, attempting rollback...'
                     sh '''
-                        kubectl rollout undo deployment/demo-microservice
-                        kubectl rollout status deployment/demo-microservice --timeout=300s
+                        ./kubectl rollout undo deployment/demo-microservice
+                        ./kubectl rollout status deployment/demo-microservice --timeout=300s
                     '''
                 }
             }
