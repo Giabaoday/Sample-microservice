@@ -2,7 +2,6 @@ pipeline {
     agent any
     
     environment {
-        // Update these values according to your setup
         SONAR_PROJECT_KEY = 'Giabaoday_Sample-microservice'
         SONAR_ORG = 'giabaoday'
     }
@@ -40,7 +39,7 @@ pipeline {
             }
             post {
                 always {
-                    publishTestResults testResultsPattern: 'target/surefire-reports/*.xml'
+                    junit testResultsPattern: 'target/surefire-reports/*.xml', allowEmptyResults: true
                 }
             }
         }
