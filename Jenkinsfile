@@ -86,31 +86,6 @@ pipeline {
             }
         }
         
-        stage('Snyk Docker Image Scan') {
-            steps {
-                script {
-                    // Ensure Snyk CLI is installed
-                    sh '''
-                        if ! command -v snyk > /dev/null; then
-                          npm install -g snyk
-                        fi
-                    '''
-                    // Authenticate Snyk
-                    withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
-                        sh 'snyk auth $SNYK_TOKEN'
-                    }
-                    // Scan the Docker image
-                    def result = sh(
-                        script: "snyk container test demo-app:${BUILD_NUMBER} --severity-threshold=high",
-                        returnStatus: true
-                    )
-                    if (result != 0) {
-                        echo "Warning: Vulnerabilities found in Docker image, but continuing pipeline."
-                    }
-                }
-            }
-        }
-        
         stage('Scan') {
             steps {
                 script {
