@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: demo-microservice
-        image: demo-app:latest
+        image: baotg0502/demo-app:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
