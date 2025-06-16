@@ -69,30 +69,17 @@ pipeline {
         }
         
         stage('Security Scan - Snyk') {
-            tools {
-                snyk 'Snyk'  
-            }
             steps {
                 echo '🛡️ Running Snyk security scan...'
-                withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
-                    sh '''
-                        # Authenticate with Snyk
-                        snyk auth $SNYK_TOKEN
-                        
-                        echo "📋 Scanning dependencies for vulnerabilities..."
-                        snyk test \
-                            --severity-threshold=high \
-                            --json > snyk-report.json || echo "Vulnerabilities found, but continuing..."
-                        
-                        echo "📊 Snyk scan results:"
-                        snyk test --severity-threshold=medium || echo "Scan completed with findings"
-                        
-                        echo "🔄 Monitoring project in Snyk dashboard..."
-                        snyk monitor \
-                            --project-name="github-auto-pipeline-${BUILD_NUMBER}" \
-                            --project-tags="environment=ci,build=${BUILD_NUMBER}" || echo "Monitoring setup completed"
-                    '''
-                }
+                snykSecurity(
+                    snykInstallation: 'Snyk',
+                    snykTokenId: 'snyk-token',
+                    failOnIssues: false,
+                    monitorOnBuild: true,
+                    projectName: "github-auto-pipeline-${BUILD_NUMBER}",
+                    projectTags: "environment=ci,build=${BUILD_NUMBER}",
+                    severityThreshold: 'high'
+                )
             }
             post {
                 always {
