@@ -67,26 +67,7 @@ pipeline {
                 echo '✅ Quality Gate passed!'
             }
         }
-        
-        stage('Security Scan - Snyk') {
-            steps {
-                echo '🛡️ Running Snyk security scan...'
-                snykSecurity(
-                    snykInstallation: 'Snyk',
-                    snykTokenId: 'snyk-token',
-                    failOnIssues: false,
-                    monitorProjectOnBuild: true,
-                    projectName: "github-auto-pipeline-${BUILD_NUMBER}-environment=ci",
-                    severity: 'high'
-                )
-            }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'snyk-report.json', allowEmptyArchive: true
-                }
-            }
-        }
-        
+         
         stage('Build Docker Image') {
             steps {
                 echo '🐳 Building Docker image...'
@@ -105,6 +86,31 @@ pipeline {
             }
         }
         
+        stage('Snyk Docker Image Scan') {
+            steps {
+                script {
+                    // Ensure Snyk CLI is installed
+                    sh '''
+                        if ! command -v snyk > /dev/null; then
+                          npm install -g snyk
+                        fi
+                    '''
+                    // Authenticate Snyk
+                    withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
+                        sh 'snyk auth $SNYK_TOKEN'
+                    }
+                    // Scan the Docker image
+                    def result = sh(
+                        script: "snyk container test demo-app:${BUILD_NUMBER} --severity-threshold=high",
+                        returnStatus: true
+                    )
+                    if (result != 0) {
+                        echo "Warning: Vulnerabilities found in Docker image, but continuing pipeline."
+                    }
+                }
+            }
+        }
+        
         stage('Scan') {
             steps {
                 script {
@@ -114,14 +120,6 @@ pipeline {
                         snykTokenId: 'snyk-token',
                         failOnIssues: false
                     )
-                    def variable = sh(
-                        script: 'snyk container test medahi/xyz-abc --severity-threshold=critical',
-                        returnStatus: true
-                    )
-                    echo "error code =  \u001b[1m${variable}\u001b[0m"
-                    if (variable != 0) {
-                        echo "Warning: Vulnerabilities found, but continuing pipeline."
-                    }
                 }
             }
         }
@@ -130,31 +128,37 @@ pipeline {
             steps {
                 echo '☸️ Deploying to Kubernetes...'
                 script {
+                    // Ensure kubectl is installed
                     sh '''
-                        # Update image tag in deployment
-                        sed -i "s|demo-microservice:latest|demo-microservice:${BUILD_NUMBER}|g" k8s/deployment.yaml
-                        
-                        # Apply Kubernetes manifests
-                        kubectl apply -f k8s/deployment.yaml
-                        kubectl apply -f k8s/service.yaml
-                        
-                        # Wait for deployment to be ready with health checks
-                        kubectl rollout status deployment/demo-microservice --timeout=300s
-                        
-                        # Verify health checks
-                        echo "Verifying application health..."
-                        kubectl get pods -l app=demo-microservice
-                        
-                        # Get service URL and verify endpoint
-                        SERVICE_URL=$(kubectl get service demo-microservice-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-                        if [ -n "$SERVICE_URL" ]; then
-                            echo "Service URL: http://$SERVICE_URL"
-                            # Add health check
-                            curl -f http://$SERVICE_URL/health || echo "Health check failed, but continuing..."
+                        if ! command -v kubectl > /dev/null; then
+                          curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+                          chmod +x ./kubectl
+                          mv ./kubectl /usr/local/bin/kubectl
                         fi
-                        
-                        echo "✅ Kubernetes deployment successful!"
                     '''
+                    // Update image tag in deployment
+                    sed -i "s|demo-microservice:latest|demo-microservice:${BUILD_NUMBER}|g" k8s/deployment.yaml
+                    
+                    // Apply Kubernetes manifests
+                    kubectl apply -f k8s/deployment.yaml
+                    kubectl apply -f k8s/service.yaml
+                    
+                    // Wait for deployment to be ready with health checks
+                    kubectl rollout status deployment/demo-microservice --timeout=300s
+                    
+                    // Verify health checks
+                    echo "Verifying application health..."
+                    kubectl get pods -l app=demo-microservice
+                    
+                    // Get service URL and verify endpoint
+                    SERVICE_URL=$(kubectl get service demo-microservice-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+                    if [ -n "$SERVICE_URL" ]; then
+                        echo "Service URL: http://$SERVICE_URL"
+                        // Add health check
+                        curl -f http://$SERVICE_URL/health || echo "Health check failed, but continuing..."
+                    fi
+                    
+                    echo "✅ Kubernetes deployment successful!"
                 }
             }
             post {
