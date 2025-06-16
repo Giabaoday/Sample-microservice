@@ -126,39 +126,33 @@ pipeline {
         
         stage('Deploy to Kubernetes') {
             steps {
-                echo '☸️ Deploying to Kubernetes...'
                 script {
-                    // Ensure kubectl is installed
                     sh '''
+                        # Ensure kubectl is installed
                         if ! command -v kubectl > /dev/null; then
                           curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
                           chmod +x ./kubectl
                           mv ./kubectl /usr/local/bin/kubectl
                         fi
+                        # Update image tag in deployment
+                        sed -i "s|demo-microservice:latest|demo-microservice:${BUILD_NUMBER}|g" k8s/deployment.yaml
+                        # Apply Kubernetes manifests
+                        kubectl apply -f k8s/deployment.yaml
+                        kubectl apply -f k8s/service.yaml
+                        # Wait for deployment to be ready with health checks
+                        kubectl rollout status deployment/demo-microservice --timeout=300s
+                        # Verify health checks
+                        echo "Verifying application health..."
+                        kubectl get pods -l app=demo-microservice
+                        # Get service URL and verify endpoint
+                        SERVICE_URL=$(kubectl get service demo-microservice-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+                        if [ -n "$SERVICE_URL" ]; then
+                            echo "Service URL: http://$SERVICE_URL"
+                            # Add health check
+                            curl -f http://$SERVICE_URL/health || echo "Health check failed, but continuing..."
+                        fi
+                        echo "✅ Kubernetes deployment successful!"
                     '''
-                    // Update image tag in deployment
-                    sed -i "s|demo-microservice:latest|demo-microservice:${BUILD_NUMBER}|g" k8s/deployment.yaml
-                    
-                    // Apply Kubernetes manifests
-                    kubectl apply -f k8s/deployment.yaml
-                    kubectl apply -f k8s/service.yaml
-                    
-                    // Wait for deployment to be ready with health checks
-                    kubectl rollout status deployment/demo-microservice --timeout=300s
-                    
-                    // Verify health checks
-                    echo "Verifying application health..."
-                    kubectl get pods -l app=demo-microservice
-                    
-                    // Get service URL and verify endpoint
-                    SERVICE_URL=$(kubectl get service demo-microservice-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-                    if [ -n "$SERVICE_URL" ]; then
-                        echo "Service URL: http://$SERVICE_URL"
-                        // Add health check
-                        curl -f http://$SERVICE_URL/health || echo "Health check failed, but continuing..."
-                    fi
-                    
-                    echo "✅ Kubernetes deployment successful!"
                 }
             }
             post {
