@@ -75,10 +75,9 @@ pipeline {
                     snykInstallation: 'Snyk',
                     snykTokenId: 'snyk-token',
                     failOnIssues: false,
-                    monitorOnBuild: true,
-                    projectName: "github-auto-pipeline-${BUILD_NUMBER}",
-                    projectTags: "environment=ci,build=${BUILD_NUMBER}",
-                    severityThreshold: 'high'
+                    monitorProjectOnBuild: true,
+                    projectName: "github-auto-pipeline-${BUILD_NUMBER}-environment=ci",
+                    severity: 'high'
                 )
             }
             post {
