@@ -91,7 +91,6 @@ pipeline {
                         fi
                     '''
                     
-                    // Push to Docker Hub
                     withCredentials([usernamePassword(credentialsId: "${DOCKER_HUB_CREDENTIALS}", 
                                                     usernameVariable: 'DOCKER_HUB_USERNAME', 
                                                     passwordVariable: 'DOCKER_HUB_PASSWORD')]) {
@@ -175,7 +174,6 @@ pipeline {
             echo '🧹 Cleaning up workspace...'
             archiveArtifacts artifacts: 'target/*.jar', allowEmptyArchive: true
             
-            // Clean up local images to save space
             sh '''
                 docker rmi ${DOCKER_HUB_REPO}:${BUILD_NUMBER} || true
                 docker rmi ${DOCKER_HUB_REPO}:latest || true
